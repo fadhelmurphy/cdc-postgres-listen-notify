@@ -1,0 +1,127 @@
+[
+    {
+        "label": "os",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "os",
+        "description": "os",
+        "detail": "os",
+        "documentation": {}
+    },
+    {
+        "label": "psycopg2",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "psycopg2",
+        "description": "psycopg2",
+        "detail": "psycopg2",
+        "documentation": {}
+    },
+    {
+        "label": "json",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "json",
+        "description": "json",
+        "detail": "json",
+        "documentation": {}
+    },
+    {
+        "label": "logging",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "logging",
+        "description": "logging",
+        "detail": "logging",
+        "documentation": {}
+    },
+    {
+        "label": "time",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "time",
+        "description": "time",
+        "detail": "time",
+        "documentation": {}
+    },
+    {
+        "label": "sys",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "sys",
+        "description": "sys",
+        "detail": "sys",
+        "documentation": {}
+    },
+    {
+        "label": "DB_CONFIG",
+        "importPath": "config",
+        "description": "config",
+        "isExtraImport": true,
+        "detail": "config",
+        "documentation": {}
+    },
+    {
+        "label": "DB_CONFIG",
+        "kind": 5,
+        "importPath": "app.config",
+        "description": "app.config",
+        "peekOfCode": "DB_CONFIG = {\n    \"dbname\": os.getenv(\"POSTGRES_DB\", \"bankdb\"),\n    \"user\": os.getenv(\"POSTGRES_USER\", \"admin\"),\n    \"password\": os.getenv(\"POSTGRES_PASSWORD\", \"admin\"),\n    \"host\": os.getenv(\"POSTGRES_HOST\", \"postgres\"),  # Sesuai service name di docker-compose yak ajg\n    \"port\": os.getenv(\"POSTGRES_PORT\", \"5432\")\n}\nTELEGRAM_BOT_TOKEN = os.getenv(\"TELEGRAM_BOT_TOKEN\", \"YOUR_BOT_TOKEN\")\nTELEGRAM_CHAT_ID = os.getenv(\"TELEGRAM_CHAT_ID\", \"YOUR_CHAT_ID\")",
+        "detail": "app.config",
+        "documentation": {}
+    },
+    {
+        "label": "TELEGRAM_BOT_TOKEN",
+        "kind": 5,
+        "importPath": "app.config",
+        "description": "app.config",
+        "peekOfCode": "TELEGRAM_BOT_TOKEN = os.getenv(\"TELEGRAM_BOT_TOKEN\", \"YOUR_BOT_TOKEN\")\nTELEGRAM_CHAT_ID = os.getenv(\"TELEGRAM_CHAT_ID\", \"YOUR_CHAT_ID\")",
+        "detail": "app.config",
+        "documentation": {}
+    },
+    {
+        "label": "TELEGRAM_CHAT_ID",
+        "kind": 5,
+        "importPath": "app.config",
+        "description": "app.config",
+        "peekOfCode": "TELEGRAM_CHAT_ID = os.getenv(\"TELEGRAM_CHAT_ID\", \"YOUR_CHAT_ID\")",
+        "detail": "app.config",
+        "documentation": {}
+    },
+    {
+        "label": "connect_db",
+        "kind": 2,
+        "importPath": "app.consumer",
+        "description": "app.consumer",
+        "peekOfCode": "def connect_db():\n    while True:\n        try:\n            conn = psycopg2.connect(**DB_CONFIG)\n            conn.autocommit = True\n            logging.info(\"Connected to PostgreSQL!\")\n            return conn\n        except Exception as e:\n            logging.error(f\"Error connecting to database: {e}\")\n            time.sleep(5)",
+        "detail": "app.consumer",
+        "documentation": {}
+    },
+    {
+        "label": "send_alert",
+        "kind": 2,
+        "importPath": "app.consumer",
+        "description": "app.consumer",
+        "peekOfCode": "def send_alert(message):\n    logging.info(f\"Alert sent: {message}\")\ndef process_notification(notify):\n    transaction = json.loads(notify.payload)\n    operation = transaction.get(\"operation\")\n    user_id, amount, status = transaction.get(\"user_id\"), transaction.get(\"amount\"), transaction.get(\"status\")\n    messages = {\n        \"INSERT\": f\"INSERT: Transaksi Baru!\\nUser ID: {user_id}\\nAmount: {amount}\\nStatus: {status}\" +\n                   (\"\\n🚨 ada nominal transaksi yang lebih dari 10 juta\" if amount and amount >= 10_000_000 else \"\"),\n        \"UPDATE\": f\"UPDATE: Transaksi {transaction.get('id')}!\\nUser ID: {user_id}\\n\"",
+        "detail": "app.consumer",
+        "documentation": {}
+    },
+    {
+        "label": "process_notification",
+        "kind": 2,
+        "importPath": "app.consumer",
+        "description": "app.consumer",
+        "peekOfCode": "def process_notification(notify):\n    transaction = json.loads(notify.payload)\n    operation = transaction.get(\"operation\")\n    user_id, amount, status = transaction.get(\"user_id\"), transaction.get(\"amount\"), transaction.get(\"status\")\n    messages = {\n        \"INSERT\": f\"INSERT: Transaksi Baru!\\nUser ID: {user_id}\\nAmount: {amount}\\nStatus: {status}\" +\n                   (\"\\n🚨 ada nominal transaksi yang lebih dari 10 juta\" if amount and amount >= 10_000_000 else \"\"),\n        \"UPDATE\": f\"UPDATE: Transaksi {transaction.get('id')}!\\nUser ID: {user_id}\\n\"\n                   f\"Amount: {transaction.get('old_amount')} → {transaction.get('new_amount')}\\n\"\n                   f\"Status: {transaction.get('old_status')} → {transaction.get('new_status')}\",",
+        "detail": "app.consumer",
+        "documentation": {}
+    },
+    {
+        "label": "listen_postgres",
+        "kind": 2,
+        "importPath": "app.consumer",
+        "description": "app.consumer",
+        "peekOfCode": "def listen_postgres(conn):\n    cursor = conn.cursor()\n    cursor.execute(\"LISTEN transaction_alert;\")\n    logging.info(\"Listening for PostgreSQL notifications...\")\n    while True:\n        conn.poll()\n        while conn.notifies:\n            process_notification(conn.notifies.pop(0))\nif __name__ == \"__main__\":\n    listen_postgres(connect_db())",
+        "detail": "app.consumer",
+        "documentation": {}
+    }
+]

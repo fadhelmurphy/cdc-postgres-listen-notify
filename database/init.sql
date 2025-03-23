@@ -6,40 +6,21 @@ CREATE TABLE transactions (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Function untuk NOTIFY event ke Python
 CREATE OR REPLACE FUNCTION notify_transaction()
 RETURNS TRIGGER AS $$
-DECLARE
-    payload JSON;
 BEGIN
-    payload = json_build_object(
+    PERFORM pg_notify('transaction_alert', json_build_object(
         'operation', TG_OP,
         'id', COALESCE(NEW.id, OLD.id),
         'user_id', COALESCE(NEW.user_id, OLD.user_id),
-        'amount', COALESCE(NEW.amount, OLD.amount),
-        'status', COALESCE(NEW.status, OLD.status),
+        'amount', CASE WHEN TG_OP = 'UPDATE' THEN json_build_object('old', OLD.amount, 'new', NEW.amount) ELSE COALESCE(NEW.amount, OLD.amount) END,
+        'status', CASE WHEN TG_OP = 'UPDATE' THEN json_build_object('old', OLD.status, 'new', NEW.status) ELSE COALESCE(NEW.status, OLD.status) END,
         'timestamp', CURRENT_TIMESTAMP
-    );
-
-    IF TG_OP = 'UPDATE' THEN
-        payload = json_build_object(
-            'operation', 'UPDATE',
-            'id', NEW.id,
-            'user_id', NEW.user_id,
-            'old_amount', OLD.amount,
-            'new_amount', NEW.amount,
-            'old_status', OLD.status,
-            'new_status', NEW.status,
-            'updated_at', CURRENT_TIMESTAMP
-        );
-    END IF;
-
-    PERFORM pg_notify('transaction_alert', payload::text);
+    )::text);
     RETURN NULL;
 END;
 $$ LANGUAGE plpgsql;
 
--- Single trigger untuk INSERT, UPDATE, DELETE
 CREATE TRIGGER transaction_trigger
 AFTER INSERT OR UPDATE OR DELETE ON transactions
 FOR EACH ROW EXECUTE FUNCTION notify_transaction();
