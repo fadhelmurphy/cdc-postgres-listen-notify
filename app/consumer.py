@@ -28,19 +28,23 @@ def send_alert(message):
 def process_notification(notify):
     transaction = json.loads(notify.payload)
     operation = transaction.get("operation")
+    is_update = "UPDATE" == operation
     user_id, amount, status = transaction.get("user_id"), transaction.get("amount"), transaction.get("status")
     
     messages = {
-        "INSERT": f"INSERT: Transaksi Baru!\nUser ID: {user_id}\nAmount: {amount}\nStatus: {status}" +
-                   ("\n🚨 ada nominal transaksi yang lebih dari 10 juta" if amount and amount >= 10_000_000 else ""),
-        "UPDATE": f"UPDATE: Transaksi {transaction.get('id')}!\nUser ID: {user_id}\n"
-                   f"Amount: {transaction.get('old_amount')} → {transaction.get('new_amount')}\n"
-                   f"Status: {transaction.get('old_status')} → {transaction.get('new_status')}",
+        "INSERT": (
+            f"INSERT: Transaksi Baru!\nUser ID: {user_id}\nAmount: {amount}\nStatus: {status}"
+            "\n🚨 ada nominal transaksi yang lebih dari 10 juta"  if amount and amount >= 10_000_000 else ""
+            ) if not is_update else "",
+        "UPDATE": (
+            f"UPDATE: Transaksi {transaction.get('id')}!\nUser ID: {user_id}\n"
+            f"Amount: {transaction.get('old_amount')} → {transaction.get('new_amount')}\n"
+            f"Status: {transaction.get('old_status')} → {transaction.get('new_status')}"
+            ),
         "DELETE": f"DELETE: Transaksi {transaction.get('id')}!\nUser ID: {user_id}\nAmount: {amount}\nStatus: {status}"
     }
     
-    if operation in messages:
-        send_alert(messages[operation])
+    send_alert(messages[operation])
 
 def listen_postgres(conn):
     cursor = conn.cursor()

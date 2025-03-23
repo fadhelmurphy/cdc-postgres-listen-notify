@@ -8,15 +8,32 @@ CREATE TABLE transactions (
 
 CREATE OR REPLACE FUNCTION notify_transaction()
 RETURNS TRIGGER AS $$
+DECLARE
+    payload JSONB;
 BEGIN
-    PERFORM pg_notify('transaction_alert', json_build_object(
-        'operation', TG_OP,
-        'id', COALESCE(NEW.id, OLD.id),
-        'user_id', COALESCE(NEW.user_id, OLD.user_id),
-        'amount', CASE WHEN TG_OP = 'UPDATE' THEN json_build_object('old', OLD.amount, 'new', NEW.amount) ELSE COALESCE(NEW.amount, OLD.amount) END,
-        'status', CASE WHEN TG_OP = 'UPDATE' THEN json_build_object('old', OLD.status, 'new', NEW.status) ELSE COALESCE(NEW.status, OLD.status) END,
-        'timestamp', CURRENT_TIMESTAMP
-    )::text);
+    IF TG_OP = 'UPDATE' THEN
+        payload := jsonb_build_object(
+            'operation', TG_OP,
+            'id', NEW.id,
+            'user_id', NEW.user_id,
+            'new_amount', NEW.amount,
+            'old_amount', OLD.amount,
+            'new_status', NEW.status,
+            'old_status', OLD.status,
+            'timestamp', CURRENT_TIMESTAMP
+        );
+    ELSE
+        payload := jsonb_build_object(
+            'operation', TG_OP,
+            'id', COALESCE(NEW.id, OLD.id),
+            'user_id', COALESCE(NEW.user_id, OLD.user_id),
+            'amount', COALESCE(NEW.amount, OLD.amount),
+            'status', COALESCE(NEW.status, OLD.status),
+            'timestamp', CURRENT_TIMESTAMP
+        );
+    END IF;
+
+    PERFORM pg_notify('transaction_alert', payload::text);
     RETURN NULL;
 END;
 $$ LANGUAGE plpgsql;
