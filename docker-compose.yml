@@ -1,0 +1,33 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: postgres_cdc
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: bankdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  python_app:
+    build: ./app
+    container_name: python_cdc
+    depends_on:
+      - postgres
+    environment:
+      - POSTGRES_DB=bankdb
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=admin
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - TELEGRAM_BOT_TOKEN=YOUR_BOT_TOKEN
+      - TELEGRAM_CHAT_ID=YOUR_CHAT_ID
+    volumes:
+      - ./logs:/app/logs
+    restart: always
+
+volumes:
+  postgres_data:
